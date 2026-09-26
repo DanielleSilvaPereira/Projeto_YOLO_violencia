@@ -1,0 +1,23 @@
+# YOLOv9-C adaptado para CLASSIFICAÇÃO (violência x não violência).
+#
+# O backbone é idêntico ao do yolov9c.yaml de detecção (GELAN: RepNCSPELAN4,
+# ADown, SPPELAN). A "cabeça" de detecção foi trocada por uma cabeça de
+# classificação (Classify). Por isso os pesos do backbone pré-treinado no COCO
+# (yolov9c.pt) são transferidos camada a camada em scripts/treinar.py.
+
+nc: 2 # número de classes (sobrescrito pelo dataset)
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 1, RepNCSPELAN4, [256, 128, 64, 1]] # 2
+  - [-1, 1, ADown, [256]] # 3-P3/8
+  - [-1, 1, RepNCSPELAN4, [512, 256, 128, 1]] # 4
+  - [-1, 1, ADown, [512]] # 5-P4/16
+  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]] # 6
+  - [-1, 1, ADown, [512]] # 7-P5/32
+  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]] # 8
+  - [-1, 1, SPPELAN, [512, 256]] # 9
+
+head:
+  - [-1, 1, Classify, [nc]] # 10
