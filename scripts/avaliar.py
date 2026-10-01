@@ -133,7 +133,11 @@ def main(argv=None):
     print("avaliando frames ...")
     mf = avaliar_frames(classificar, dados / "test", cfg, args.lote)
     salvar_matriz(mf["matriz_confusao"], "Por frame", saida / "matriz_frames.png")
-    resultado = {"modelo": args.pesos, "versao": cfg.versao_modelo, "por_frame": mf}
+    resultado = {"modelo": args.pesos, "versao": cfg.versao_modelo,
+                 "parametros_agregacao": {k: getattr(cfg, k) for k in (
+                     "fps_amostragem", "janela_suavizacao_s", "topo_s", "limiar_frame",
+                     "limiar_anomalia", "limiar_alerta_alto")},
+                 "por_frame": mf}
 
     if args.por_video:
         print("avaliando vídeos ...")

@@ -25,10 +25,10 @@ def main(argv=None):
                     help="yaml da arquitetura ou .pt de um classificador")
     ap.add_argument("--pretreinado", default="yolov9c.pt",
                     help="pesos de onde copiar o backbone (só quando --modelo é .yaml); 'nenhum' treina do zero")
-    ap.add_argument("--epocas", type=int, default=30)
+    ap.add_argument("--epocas", type=int, default=40)
     ap.add_argument("--lote", type=int, default=64)
     ap.add_argument("--imgsz", type=int, default=224)
-    ap.add_argument("--paciencia", type=int, default=8, help="early stopping (épocas sem melhora)")
+    ap.add_argument("--paciencia", type=int, default=15, help="early stopping (épocas sem melhora)")
     ap.add_argument("--lr0", type=float, default=0.001)
     ap.add_argument("--dispositivo", default=None, help="0, 0,1, cpu ... (padrão: automático)")
     ap.add_argument("--projeto", default="runs/violencia")

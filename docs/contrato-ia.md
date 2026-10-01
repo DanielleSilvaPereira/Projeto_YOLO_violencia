@@ -61,8 +61,13 @@ Outro código ou mais de 10 s → o backend marca `Erro` e tenta de novo depois.
   "score": 95.24,
   "veredicto": "Alerta Alto",
   "segmentos_criticos": [
-    { "inicio_s": 2.0, "fim_s": 5.0, "score": 96.1 },
-    { "inicio_s": 12.0, "fim_s": 14.0, "score": 88.7 }
+    { "inicio_s": 2.0, "fim_s": 5.0, "score": 96.1, "pico_s": 3.25 },
+    { "inicio_s": 12.0, "fim_s": 14.0, "score": 88.7, "pico_s": 12.5 }
+  ],
+  "linha_do_tempo": [
+    { "inicio_s": 0, "fim_s": 1, "score": 8.4,  "score_frame": 12.0, "pico_s": 0.75, "nivel": "normal" },
+    { "inicio_s": 1, "fim_s": 2, "score": 71.0, "score_frame": 80.3, "pico_s": 1.5,  "nivel": "alerta" },
+    { "inicio_s": 2, "fim_s": 3, "score": 96.1, "score_frame": 98.7, "pico_s": 2.25, "nivel": "critico" }
   ],
   "versao_modelo": "yolov9c-cls-xdviolence-v1",
   "tempo_processamento_ms": 4210,
@@ -75,7 +80,8 @@ Outro código ou mais de 10 s → o backend marca `Erro` e tenta de novo depois.
 | `status` | sim | `"concluido"` |
 | `score` | sim | 0 a 100: probabilidade de agressão no vídeo como um todo (Tabela 15: `indice_probabilidade`) |
 | `veredicto` | sim | exatamente `"Alerta Alto"`, `"Anomalia"` ou `"Normal"` |
-| `segmentos_criticos` | não | trechos com indício de agressão, em segundos desde o início; `inicio_s <= fim_s` |
+| `segmentos_criticos` | não | trechos com indício de agressão, em segundos desde o início; `inicio_s <= fim_s`; `pico_s` = momento mais forte do trecho |
+| `linha_do_tempo` | não | uma entrada por segundo do vídeo (gráfico "Linha do Tempo de Agressividade" no front). `score` 0–100 = maior probabilidade suavizada no intervalo (mesma curva do veredicto); `score_frame` = maior probabilidade de um frame isolado; `pico_s` = tempo desse frame; `nivel` = `"critico"` (≥ limiar de Alerta Alto), `"alerta"` (≥ limiar de Anomalia) ou `"normal"`. Guardar como JSON (ex.: coluna `jsonb`). Tamanho do intervalo: `LINHA_DO_TEMPO_PASSO_S` |
 | `versao_modelo` | sim | nome/versão do modelo (RN07, rastreabilidade) |
 | `tempo_processamento_ms` | não | tempo gasto; usado pra medir o RN16 |
 | `hash_sha256_verificado` | recomendado | SHA-256 do arquivo **de fato** analisado |
@@ -97,6 +103,22 @@ Hash diferente do registrado → backend recusa (409) e marca `Erro` (cadeia de 
 | `400` | campo inválido |
 | `401` | token errado |
 | `409` | gravação já tinha análise concluída, ou hash não confere |
+
+## 3. Laudo em PDF (backend → IA, opcional)
+
+Para o botão "Download de Segurança": `POST {IA_SERVICE_URL}/laudo` (mesmo `IA_TOKEN`).
+
+```json
+{
+  "resultado": { "...": "o JSON recebido no callback, como foi guardado" },
+  "metadados": { "id_gravacao": 12, "arquivo": "gravacao_12.mp4", "data_gravacao": "30/09/2026 22:14",
+                 "dispositivo": "ESP32-CAM", "duracao_s": 90, "hash_sha256": "<hash registrado>" },
+  "video_url": "URL assinada (opcional: inclui os quadros de pico no PDF)"
+}
+```
+
+Resposta `200` com o PDF (`application/pdf`) e o cabeçalho `X-Codigo-Verificacao`.
+`400` resultado inválido · `401` token · `409` hash do vídeo não confere · `502` não baixou o vídeo.
 
 ## Novas tentativas (RE08)
 

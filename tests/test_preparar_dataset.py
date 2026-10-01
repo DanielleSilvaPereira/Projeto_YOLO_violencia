@@ -81,6 +81,9 @@ class TestPrepararPastas(unittest.TestCase):
             n_v = len(list((saida / "train" / "violencia").glob("*.jpg")))
             n_n = len(list((saida / "train" / "nao_violencia").glob("*.jpg")))
             self.assertEqual(n_v, n_n)
+            va = json.loads((saida / "resumo.json").read_text())["frames"]["val"]
+            if len(va) == 2:
+                self.assertEqual(va["violencia"], va["nao_violencia"])
 
 
 if __name__ == "__main__":

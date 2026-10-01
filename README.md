@@ -88,10 +88,13 @@ python scripts/preparar_dataset.py --formato xd \
 # 3. treino (GPU recomendada)
 python scripts/treinar.py --dados data/frames --epocas 30 --lote 64
 
-# 4. avaliação
+# 4. calibra score/veredicto nos vídeos de validação (grava pesos/calibracao.json)
+python scripts/calibrar.py --pesos pesos/melhor.pt --dados data/frames
+
+# 5. avaliação final no teste (já usa a calibração)
 python scripts/avaliar.py --pesos pesos/melhor.pt --dados data/frames --por-video
 
-# 5. um vídeo qualquer
+# 6. um vídeo qualquer
 python scripts/analisar_video.py video.mp4 --video-saida anotado.mp4 --grafico linha.png
 ```
 
@@ -112,6 +115,11 @@ uvicorn servico.app:app --host 0.0.0.0 --port 8090
 No `.env` do backend: `IA_SERVICE_URL=http://<host>:8090`.
 Endpoints: `POST /analisar` (contrato) e `GET /saude`.
 
+Além de score, veredicto e trechos críticos, o callback leva `linha_do_tempo`:
+uma barra por segundo com o score daquele segundo, o frame mais forte
+(`pico_s`) e o `nivel` (`normal` / `alerta` / `critico`) — pronto para o
+gráfico de linha do tempo e para pular o player até o momento suspeito.
+
 O serviço baixa o vídeo em streaming calculando o SHA-256, recusa se o hash
 não bater (cadeia de custódia), analisa um vídeo por vez e envia o callback
 (com até 3 tentativas). Pedidos repetidos do mesmo `id_gravacao` enquanto ele
@@ -119,6 +127,28 @@ ainda está na fila são ignorados; depois de terminar, aceita de novo (RE08).
 
 Docker: `docker build -t safe-evidence-ia . && docker run -p 8090:8090 --env-file .env safe-evidence-ia`
 (coloque `pesos/melhor.pt` antes do build).
+
+## Laudo em PDF ("Download de Segurança")
+
+`ia/laudo.py` gera o laudo de uma gravação: índice e veredicto, identificação
+do arquivo com os dois SHA-256 (registrado x analisado), gráfico da linha do
+tempo, tabela de trechos críticos, quadros dos momentos de pico, dados do
+modelo e um **código de verificação** (SHA-256 do resultado da análise em JSON
+canônico; recalcule a partir do resultado guardado no banco para provar que o
+laudo não foi editado).
+
+```bash
+# analisar um vídeo e já gerar o laudo
+python scripts/analisar_video.py video.mp4 --laudo laudo.pdf
+# a partir de um resultado salvo (JSON do callback)
+python scripts/gerar_laudo.py resultado.json --metadados gravacao.json --video video.mp4
+```
+
+Pelo serviço, o backend chama `POST /laudo` com
+`{"resultado": <JSON do callback>, "metadados": {"id_gravacao", "arquivo", "data_gravacao",
+"dispositivo", "duracao_s", "hash_sha256"}, "video_url": "...(opcional)"}` e recebe o PDF
+(`application/pdf`). Com `video_url`, o hash do vídeo é conferido antes (409 se não bater)
+e os quadros de pico entram no laudo.
 
 ## Como o score e o veredicto são calculados
 
@@ -134,7 +164,12 @@ Docker: `docker build -t safe-evidence-ia . && docker run -p 8090:8090 --env-fil
 O score usa uma duração fixa (2 s) em vez da média do vídeo inteiro: uma briga
 de 4 s num vídeo de 10 minutos tem que dar alerta, e a média simples diluiria
 isso. A suavização evita que um único frame isolado dispare alerta.
-Ajuste os limiares olhando `resultados/videos.csv` depois da avaliação.
+O repositório já traz `pesos/calibracao.json` com os valores calibrados
+(janela 5 s, topo 15 s, Anomalia ≥ 62,76, Alerta Alto ≥ 94,24).
+Os valores da tabela são só o ponto de partida: `scripts/calibrar.py` escolhe
+janela, duração do topo e limiares nos vídeos de **validação** e grava em
+`pesos/calibracao.json`, que o serviço e a avaliação carregam sozinhos
+(variável de ambiente continua tendo prioridade). Nunca calibre no teste.
 
 ## Testes
 

@@ -21,6 +21,7 @@ class ResultadoVideo:
     veredicto: str
     segmentos_criticos: list[dict]
     probs_suavizadas: list[float]
+    linha_do_tempo: list[dict] | None = None
 
 
 def suavizar(probs: np.ndarray, janela: int) -> np.ndarray:
@@ -87,10 +88,53 @@ def segmentos(tempos: np.ndarray, probs: np.ndarray, passo_s: float, cfg: Config
         if fim - ini < cfg.duracao_min_segmento_s:
             continue
         trecho = probs[int(a): int(b) + 1]
+        pico = int(a) + int(np.argmax(trecho))
         saida.append({
             "inicio_s": round(ini, 2),
             "fim_s": round(fim, 2),
             "score": round(float(trecho.max()) * 100, 2),
+            "pico_s": round(float(tempos[pico]), 2),  # momento mais violento do trecho
+        })
+    return saida
+
+
+def nivel(score: float, cfg: ConfigInferencia) -> str:
+    """Cor da barra no front: "critico" (vermelho), "alerta" (amarelo) ou "normal"."""
+    if score >= cfg.limiar_alerta_alto:
+        return "critico"
+    if score >= cfg.limiar_anomalia:
+        return "alerta"
+    return "normal"
+
+
+def linha_do_tempo(tempos: np.ndarray, probs_suav: np.ndarray, probs_brutas: np.ndarray,
+                   cfg: ConfigInferencia, duracao_video_s: float | None = None) -> list[dict]:
+    """Resume a curva em intervalos fixos (padrão 1 s) para o gráfico do front.
+
+    score       = maior probabilidade suavizada do intervalo (0-100), a mesma
+                  curva usada no veredicto e nos trechos críticos
+    score_frame = maior probabilidade de um frame isolado, sem suavizar
+    pico_s      = tempo exato desse frame (o front pode pular o vídeo pra ele)
+    """
+    passo = max(cfg.passo_linha_do_tempo_s, 1e-3)
+    fim_total = duracao_video_s or (float(tempos[-1]) + 1.0 / cfg.fps_amostragem)
+    n = max(1, int(np.ceil(fim_total / passo - 1e-9)))
+    idx = np.minimum((tempos / passo).astype(int), n - 1)
+    saida = []
+    for b in range(n):
+        sel = np.nonzero(idx == b)[0]
+        if len(sel) == 0:
+            continue
+        i_suav = sel[int(np.argmax(probs_suav[sel]))]
+        i_bruto = sel[int(np.argmax(probs_brutas[sel]))]
+        sc = round(float(probs_suav[i_suav]) * 100, 2)
+        saida.append({
+            "inicio_s": round(b * passo, 2),
+            "fim_s": round(min((b + 1) * passo, fim_total), 2),
+            "score": sc,
+            "score_frame": round(float(probs_brutas[i_bruto]) * 100, 2),
+            "pico_s": round(float(tempos[i_bruto]), 2),
+            "nivel": nivel(sc, cfg),
         })
     return saida
 
@@ -112,4 +156,5 @@ def agregar(tempos: list[float], probs: list[float], cfg: ConfigInferencia,
         veredicto=veredicto(sc, cfg),
         segmentos_criticos=segmentos(t, ps, passo_s, cfg, duracao_video_s),
         probs_suavizadas=[round(float(x), 4) for x in ps],
+        linha_do_tempo=linha_do_tempo(t, ps, p, cfg, duracao_video_s),
     )
