@@ -77,6 +77,9 @@ class TestServico(unittest.TestCase):
         self.assertEqual(r["versao_modelo"], "teste-v1")
         self.assertEqual(r["hash_sha256_verificado"], self.hash)
         self.assertNotIn("_linha_do_tempo", r)
+        lt = r["linha_do_tempo"]
+        self.assertGreaterEqual(len(lt), 19)
+        self.assertEqual({b["nivel"] for b in lt if 9 <= b["inicio_s"] < 11}, {"critico"})
         seg = r["segmentos_criticos"]
         self.assertEqual(len(seg), 1)
         self.assertAlmostEqual(seg[0]["inicio_s"], 8, delta=0.6)

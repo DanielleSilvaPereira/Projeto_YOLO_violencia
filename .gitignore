@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+data/
+runs/
+resultados/
+pesos/*.pt
+*.mp4
+*.avi
+!tests/**/*.mp4
+.ipynb_checkpoints/
+yolov9*.pt
+yolo11*.pt

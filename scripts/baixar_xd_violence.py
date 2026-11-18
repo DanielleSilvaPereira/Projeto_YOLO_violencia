@@ -21,6 +21,7 @@ import argparse
 import random
 import shutil
 import sys
+import time
 from pathlib import Path
 
 REPO = "jherng/xd-violence"
@@ -76,10 +77,26 @@ def main(argv=None):
         print(f"anotação: {local}")
 
     print(f"baixando {len(escolhidos)} vídeos para {destino} ...")
+    falhas = []
     for n, f in enumerate(escolhidos, 1):
-        hf_hub_download(REPO, f, repo_type="dataset", local_dir=destino)
+        if (destino / f).exists():  # já baixado numa execução anterior
+            continue
+        for tentativa in range(1, 4):
+            try:
+                hf_hub_download(REPO, f, repo_type="dataset", local_dir=destino,
+                                force_download=tentativa > 1)
+                break
+            except Exception as e:  # rede instável ou arquivo inconsistente no espelho
+                print(f"  falha ({tentativa}/3) em {Path(f).name}: {str(e)[:120]}")
+                time.sleep(2 * tentativa)
+        else:
+            falhas.append(f)
         if n % 25 == 0 or n == len(escolhidos):
             print(f"  {n}/{len(escolhidos)}")
+    if falhas:
+        print(f"\n{len(falhas)} vídeo(s) pulado(s) após 3 tentativas (o resto segue normal):")
+        for f in falhas:
+            print("  ", Path(f).name)
     print(f"pronto. Anotação por frame: {destino / 'test_annotations.txt'}")
 
 

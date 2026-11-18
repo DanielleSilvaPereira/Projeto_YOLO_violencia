@@ -1,0 +1,11 @@
+{
+  "split": "val",
+  "n_videos": 123,
+  "parametros": {
+    "JANELA_SUAVIZACAO_S": 5.0,
+    "TOPO_S": 15.0,
+    "LIMIAR_ANOMALIA": 62.76,
+    "LIMIAR_ALERTA_ALTO": 94.24,
+    "LIMIAR_FRAME": 0.6276
+  }
+}

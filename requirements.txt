@@ -13,3 +13,4 @@ matplotlib>=3.7
 fastapi>=0.110
 uvicorn[standard]>=0.29
 requests>=2.31
+reportlab>=4.0             # laudo em PDF

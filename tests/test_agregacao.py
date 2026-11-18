@@ -54,6 +54,20 @@ class TestAgregacao(unittest.TestCase):
         r = agregar([], [], cfg())
         self.assertEqual((r.score, r.veredicto), (0.0, "Normal"))
 
+    def test_linha_do_tempo(self):
+        t, p = serie(20, [(8, 12)])
+        p[42] = 0.99  # frame mais forte em 10,5 s
+        r = agregar(t, p, cfg(), 20)
+        lt = r.linha_do_tempo
+        self.assertEqual(len(lt), 20)  # uma barra por segundo
+        self.assertEqual([b["inicio_s"] for b in lt[:3]], [0, 1, 2])
+        self.assertEqual(lt[0]["nivel"], "normal")
+        self.assertEqual(lt[10]["nivel"], "critico")
+        self.assertEqual(lt[10]["pico_s"], 10.5)
+        self.assertEqual(lt[10]["score_frame"], 99.0)
+        self.assertTrue(all(0 <= b["score"] <= 100 for b in lt))
+        self.assertAlmostEqual(r.segmentos_criticos[0]["pico_s"], 10.5)
+
 
 if __name__ == "__main__":
     unittest.main()

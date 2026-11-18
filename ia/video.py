@@ -109,6 +109,7 @@ def analisar_video(caminho: str, classificar: FuncaoProb, cfg: ConfigInferencia)
         "score": r.score,
         "veredicto": r.veredicto,
         "segmentos_criticos": r.segmentos_criticos,
+        "linha_do_tempo": r.linha_do_tempo,
         "versao_modelo": cfg.versao_modelo,
         "tempo_processamento_ms": int((time.time() - inicio) * 1000),
         # extra (não vai pro backend): útil pra gráfico/depuração

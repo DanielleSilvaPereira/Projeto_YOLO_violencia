@@ -179,8 +179,8 @@ def extrair(t: Tarefa, saida: str, fps_alvo: float, max_frames: int, lado: int, 
     return linhas
 
 
-def balancear_treino(saida: Path, linhas: list[dict], seed: int) -> list[dict]:
-    treino = [l for l in linhas if l["split"] == "train"]
+def balancear_split(saida: Path, linhas: list[dict], seed: int, split: str) -> list[dict]:
+    treino = [l for l in linhas if l["split"] == split]
     por_classe = {c: [l for l in treino if l["classe"] == c] for c in (CLASSE_VIOLENCIA, CLASSE_NORMAL)}
     menor = min(len(v) for v in por_classe.values())
     rng = random.Random(seed)
@@ -210,7 +210,8 @@ def main(argv=None):
     ap.add_argument("--margem-s", type=float, default=0.5,
                     help="XD anotado: ignora frames a menos disto (s) da borda de um trecho violento")
     ap.add_argument("--proporcoes", default="0.7,0.15,0.15", help="train,val,test (por vídeo)")
-    ap.add_argument("--balancear", action="store_true", help="iguala as classes no treino")
+    ap.add_argument("--balancear", action="store_true",
+                    help="iguala as classes no treino e na validação (o teste fica com a proporção real)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args(argv)
@@ -238,7 +239,10 @@ def main(argv=None):
                 print(f"  {n}/{len(futuros)} vídeos, {len(linhas)} frames")
 
     if args.balancear:
-        linhas = balancear_treino(saida, linhas, args.seed)
+        # validação balanceada: senão a escolha do melhor modelo (acurácia) favorece
+        # quem chuta "normal"; o teste mantém a proporção real para as métricas finais
+        for s in ("train", "val"):
+            linhas = balancear_split(saida, linhas, args.seed, s)
 
     linhas.sort(key=lambda l: l["arquivo"])
     with open(saida / "manifesto.csv", "w", newline="", encoding="utf-8") as f:

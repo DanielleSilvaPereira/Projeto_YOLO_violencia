@@ -2,12 +2,15 @@
 
     python scripts/analisar_video.py meu_video.mp4
     python scripts/analisar_video.py meu_video.mp4 --video-saida anotado.mp4 --grafico linha.png
+    python scripts/analisar_video.py meu_video.mp4 --laudo laudo.pdf
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -67,6 +70,7 @@ def main(argv=None):
     ap.add_argument("--pesos", default=None, help="padrão: MODELO_PESOS ou pesos/melhor.pt")
     ap.add_argument("--video-saida", help="grava uma cópia com a probabilidade desenhada")
     ap.add_argument("--grafico", help="PNG com a probabilidade ao longo do tempo")
+    ap.add_argument("--laudo", help="gera o laudo em PDF (com os quadros de pico)")
     args = ap.parse_args(argv)
 
     cfg = ConfigInferencia()
@@ -74,6 +78,8 @@ def main(argv=None):
         cfg.pesos = args.pesos
     r = analisar_video(args.video, ClassificadorFrames(cfg), cfg)
     linha = r.pop("_linha_do_tempo")
+    h = hashlib.sha256(Path(args.video).read_bytes()).hexdigest()
+    r = {"status": "concluido", **r, "hash_sha256_verificado": h}
     print(json.dumps(r, indent=2, ensure_ascii=False))
     if args.video_saida:
         gerar_video_anotado(args.video, args.video_saida, linha["tempos_s"], linha["prob"], cfg.limiar_frame)
@@ -81,6 +87,14 @@ def main(argv=None):
     if args.grafico:
         gerar_grafico(linha["tempos_s"], linha["prob"], r["segmentos_criticos"], cfg.limiar_frame, args.grafico)
         print(f"gráfico: {args.grafico}")
+    if args.laudo:
+        from ia.laudo import gerar_laudo
+        from ia.video import duracao_video
+        meta = {"id_gravacao": "-", "arquivo": Path(args.video).name, "hash_sha256": h,
+                "duracao_s": duracao_video(args.video),
+                "data_gravacao": datetime.fromtimestamp(Path(args.video).stat().st_mtime).strftime("%d/%m/%Y %H:%M")}
+        gerar_laudo(r, args.laudo, meta, video=args.video, cfg=cfg)
+        print(f"laudo: {args.laudo}")
 
 
 if __name__ == "__main__":

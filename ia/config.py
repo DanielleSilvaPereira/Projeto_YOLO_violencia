@@ -1,16 +1,38 @@
-"""Parâmetros de inferência. Todos podem ser trocados por variável de ambiente."""
+"""Parâmetros de inferência.
+
+Ordem de prioridade de cada valor:
+  1. variável de ambiente (ex.: LIMIAR_ANOMALIA=55)
+  2. pesos/calibracao.json, gerado por scripts/calibrar.py
+  3. padrão definido abaixo
+"""
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 CLASSE_VIOLENCIA = "violencia"
 CLASSE_NORMAL = "nao_violencia"
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+def _carregar_calibracao() -> dict:
+    caminho = Path(os.environ.get("CALIBRACAO", RAIZ / "pesos" / "calibracao.json"))
+    try:
+        return json.loads(caminho.read_text(encoding="utf-8")).get("parametros", {})
+    except (OSError, ValueError):
+        return {}
+
+
+_CALIB = _carregar_calibracao()
 
 
 def _f(nome: str, padrao: float) -> float:
-    return float(os.environ.get(nome, padrao))
+    if nome in os.environ:
+        return float(os.environ[nome])
+    return float(_CALIB.get(nome, padrao))
 
 
 @dataclass
@@ -37,5 +59,7 @@ class ConfigInferencia:
     # Faixas do veredicto (score 0-100), conforme dicionário de dados.
     limiar_alerta_alto: float = field(default_factory=lambda: _f("LIMIAR_ALERTA_ALTO", 70))
     limiar_anomalia: float = field(default_factory=lambda: _f("LIMIAR_ANOMALIA", 40))
+    # Tamanho (s) de cada barra da linha do tempo enviada ao backend/front.
+    passo_linha_do_tempo_s: float = field(default_factory=lambda: _f("LINHA_DO_TEMPO_PASSO_S", 1.0))
     tamanho_lote: int = field(default_factory=lambda: int(_f("TAMANHO_LOTE", 32)))
     dispositivo: str | None = field(default_factory=lambda: os.environ.get("DISPOSITIVO") or None)
